@@ -3,7 +3,10 @@ import numpy as np
 
 from scipy.spatial.distance import cosine
 from keras.models import load_model
-model = load_model('facenet_keras.h5')
+
+
+model = load_model('./facenet_keras.h5')
+print('Model loaded')
 
 
 def slap_emoji_on_face(img: np.ndarray, emoji: np.ndarray, query_face: np.ndarray) -> np.ndarray:
@@ -44,7 +47,6 @@ def is_same_face(curr_face: np.ndarray, anchor_face: np.ndarray) -> bool:
 
 
 
-
 def main(video_filepath: str, emoji_filepath: str, query_face_filepath: str) -> str:
   '''
   Takes in a video and query face.
@@ -78,5 +80,6 @@ def main(video_filepath: str, emoji_filepath: str, query_face_filepath: str) -> 
 if __name__ == '__main__':
   video_path = 'trial_video.mov'
   emoji_path = './smiling_emoji.png'
-  out_fp = main(video_path, emoji_path)
+  query_face_filepath = 'query_face.jpeg'
+  out_fp = main(video_path, emoji_path, query_face_filepath)
   print('Video saved at:', out_fp)
