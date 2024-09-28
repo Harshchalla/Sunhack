@@ -1,11 +1,12 @@
 import cv2
 import numpy as np
+import torch
 
 from scipy.spatial.distance import cosine
-from keras.models import load_model
+from facenet_pytorch import InceptionResnetV1
 
 
-model = load_model('./facenet_keras.h5')
+resnet = InceptionResnetV1(pretrained='vggface2').eval()
 print('Model loaded')
 
 
@@ -27,12 +28,12 @@ def slap_emoji_on_face(img: np.ndarray, emoji: np.ndarray, query_face: np.ndarra
     img[y:y+h, x:x+w] = combined
   return img
 
+@torch.no_grad()
 def extract_embeddings(face):
     face = cv2.resize(face, (160, 160))
     face = face.astype('float32')
     face = (face - 127.5) / 127.5
-    face = np.expand_dims(face, axis=0)
-    embedding = model.predict(face)[0]
+    embedding = resnet(torch.tensor(face).permute(2, 0, 1).unsqueeze(0).float())
     return embedding
 
 def compare_faces(embedding1, embedding2):
