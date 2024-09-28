@@ -4,4 +4,4 @@ __pycache__
 *.swo
 env
 *.env
-
+*.h5
