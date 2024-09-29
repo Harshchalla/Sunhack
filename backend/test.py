@@ -11,10 +11,7 @@ mp_face_mesh = mp.solutions.face_mesh
 face_mesh = mp_face_mesh.FaceMesh()
 
 def get_landmark_coordinates(image_path: str, output_csv: str = './output.csv'):
-    # Extract the name of the image file without the extension
     image_name = os.path.basename(image_path)
-    
-    # Load the image
     img = cv2.imread(image_path)
     img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
@@ -46,8 +43,13 @@ def get_landmark_coordinates(image_path: str, output_csv: str = './output.csv'):
         writer.writerow(["index", "x", "y", "name_of_image", "value1", "value2"])  # Header row
         writer.writerows(landmarks_data)
 
+    return None
+
+
+
 VISUALIZE_FACE_POINTS = False
 
+# TODO: for filters its taking morph and alpha. Just hardcode it?
 filters_config = {
     'dog':
         [{'path': "filters/dog-ears.png",
@@ -68,11 +70,8 @@ def getLandmarks(img):
                  178, 162, 54, 67, 10, 297, 284, 389]
 
     height, width = img.shape[:-1]
-
     with mp_face_mesh.FaceMesh(max_num_faces=1, static_image_mode=True, min_detection_confidence=0.5) as face_mesh:
-
         results = face_mesh.process(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
-
         if not results.multi_face_landmarks:
             print('Face not detected!!!')
             return 0
@@ -88,9 +87,7 @@ def getLandmarks(img):
             # Convert normalized points to image coordinates
             face_keypnts = face_keypnts * (width, height)
             face_keypnts = face_keypnts.astype('int')
-
             relevant_keypnts = []
-
             for i in selected_keypoint_indices:
                 relevant_keypnts.append(face_keypnts[i])
             return relevant_keypnts
@@ -98,9 +95,7 @@ def getLandmarks(img):
 
 
 def load_filter_img(img_path, has_alpha):
-    # Read the image
     img = cv2.imread(img_path, cv2.IMREAD_UNCHANGED)
-
     alpha = None
     if has_alpha:
         b, g, r, alpha = cv2.split(img)
@@ -109,6 +104,7 @@ def load_filter_img(img_path, has_alpha):
     return img, alpha
 
 
+# TODO: why not just use pandas?
 def load_landmarks(annotation_file):
     with open(annotation_file) as csv_file:
         csv_reader = csv.reader(csv_file, delimiter=",")
@@ -141,16 +137,11 @@ def find_convex_hull(points):
 
 
 def load_filter(filter_name="dog"):
-
     filters = filters_config[filter_name]
-
     multi_filter_runtime = []
-
     for filter in filters:
         temp_dict = {}
-
-        img1, img1_alpha = load_filter_img('face.jpg', False)
-
+        img1, img1_alpha = load_filter_img('face.jpg', False)  # TODO: img1_alpha is going to be None, because has_alpha = False
         temp_dict['img'] = img1
         temp_dict['img_a'] = img1_alpha
         # Example usage
@@ -158,7 +149,6 @@ def load_filter(filter_name="dog"):
         points = load_landmarks('output.csv')
 
         temp_dict['points'] = points
-
         if filter['morph']:
             # Find convex hull for delaunay triangulation using the landmark points
             hull, hullIndex = find_convex_hull(points)
@@ -175,7 +165,7 @@ def load_filter(filter_name="dog"):
             if len(dt) == 0:
                 continue
 
-        if filter['animated']:
+        if filter['animated']:  # TODO: almost always False
             filter_cap = cv2.VideoCapture(filter['path'])
             temp_dict['cap'] = filter_cap
 
@@ -184,20 +174,31 @@ def load_filter(filter_name="dog"):
     return filters, multi_filter_runtime
 
 
-# process input from webcam or video file
-cap = cv2.VideoCapture(0)
+# === 
+# MAIN?
+# === 
+
+
+
+cap = cv2.VideoCapture(video_filepath)
+fps = cap.get(cv2.CAP_PROP_FPS)
+width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+out_filepath = os.path.join(os.path.dirname(video_filepath), 'output_' + '.'.join(os.path.basename(video_filepath).split('.')[:-1]) + '.mp4')
+out = cv2.VideoWriter(out_filepath, fourcc, fps, (width, height))
 
 # Some variables
 count = 0
 isFirstFrame = True
 sigma = 50
-
 iter_filter_keys = iter(filters_config.keys())
 filters, multi_filter_runtime = load_filter(next(iter_filter_keys))
 
-# The main loop
-while True:
 
+
+# The main loop
+while(cap.isOpened()):
     ret, frame = cap.read()
     if not ret:
         break
@@ -309,22 +310,8 @@ while True:
 
             frame = output = np.uint8(output)
 
-        cv2.putText(frame, "Press F to change filters", (10, 20), cv2.FONT_HERSHEY_SIMPLEX, .5, (255, 0, 0), 1)
-
-        cv2.imshow("Face Filter", output)
-
-        keypressed = cv2.waitKey(1) & 0xFF
-        if keypressed == 27:
-            break
-        # Put next filter if 'f' is pressed
-        elif keypressed == ord('f'):
-            try:
-                filters, multi_filter_runtime = load_filter(next(iter_filter_keys))
-            except:
-                iter_filter_keys = iter(filters_config.keys())
-                filters, multi_filter_runtime = load_filter(next(iter_filter_keys))
-
+        out.write(output)
         count += 1
 
 cap.release()
-cv2.destroyAllWindows()
+out.release()
