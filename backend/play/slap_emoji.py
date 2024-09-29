@@ -81,6 +81,6 @@ def main(video_filepath: str, emoji_filepath: str, query_face_filepath: str) -> 
 if __name__ == '__main__':
   video_path = 'trial_video.mov'
   emoji_path = './smiling_emoji.png'
-  query_face_filepath = 'query_face.jpeg'
+  query_face_filepath = 'temp/test_2.png'
   out_fp = main(video_path, emoji_path, query_face_filepath)
   print('Video saved at:', out_fp)
