@@ -3,6 +3,7 @@ import cv2
 import numpy as np
 import threading
 from sklearn.cluster import DBSCAN
+from queue import Queue
 
 import torch
 from facenet_pytorch import InceptionResnetV1
@@ -35,11 +36,13 @@ def get_all_faces(video_path: str) -> tuple[list[np.ndarray], tuple[int, int]]:
     cntr = -1
 
     threads = []
+    result_queue = Queue()
 
     def process_frame(frame) -> list[np.ndarray]:
       gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
       faces = face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30))
-      return [frame[y:y+h, x:x+w] for x, y, w, h in faces]
+      ret = [frame[y:y+h, x:x+w] for x, y, w, h in faces]
+      result_queue.put(ret)
 
     while True:
         ret, frame = video.read()
@@ -54,8 +57,10 @@ def get_all_faces(video_path: str) -> tuple[list[np.ndarray], tuple[int, int]]:
             for th in threads:
               th.join()
             # get result from thread
-            for th in threads:
-              faces_list.extend(th.result())
+            while not result_queue.empty():
+                result = result_queue.get()
+                faces_list.extend(result)
+
             threads = []
     video.release()
     return faces_list, frame_hw
