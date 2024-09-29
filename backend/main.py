@@ -52,7 +52,7 @@ if video_file is not None:
         if face_filename.endswith(".png"):
             caption = face_filename[len(video_hash)+1:]
             with open(f'{faces_dir}/{face_filename}', 'rb') as f:
-                face_bytes = f.read(f)
+                face_bytes = f.read()
             face_bytes_io = BytesIO(face_bytes)
             st.image(face_bytes_io, caption=caption, width=200)
             captions_list.append(caption)
