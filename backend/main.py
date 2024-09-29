@@ -32,7 +32,7 @@ def save_video_tmp(video_file, video_hash):
 def process_video(video_file):
     """Process the video and cache the result"""
     video_hash = calculate_video_hash(video_file)
-    if f"faces_zipfilepath_{video_hash}" not in st.session_state:
+    if f"faces_dir_{video_hash}" not in st.session_state:
         video_filepath = save_video_tmp(video_file, video_hash)
         faces_dir = distinct_faces.main(video_filepath, video_hash)
         st.session_state[f"faces_dir_{video_hash}"] = faces_dir
