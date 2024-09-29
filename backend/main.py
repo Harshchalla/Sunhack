@@ -43,9 +43,6 @@ def process_video(video_file):
 # Streamlit
 # ===
 st.title("Welcome to The Masquerade")
-with open('play/output_trial_video.mov', 'rb') as f:
-    st.video(f.read())
-
 video_file = st.file_uploader("Upload a video", type=["mp4", "avi", "mov"])
 
 if video_file is not None:
