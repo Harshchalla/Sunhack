@@ -1,6 +1,7 @@
 import cv2
 import numpy as np
 import torch
+import os
 
 from scipy.spatial.distance import cosine
 from facenet_pytorch import InceptionResnetV1
@@ -61,9 +62,8 @@ def main(video_filepath: str, emoji_filepath: str, query_face_filepath: list[str
   width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
   height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
   fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-  out_filepath = 'output_' + video_filepath
+  out_filepath = os.path.join(os.path.dirname(video_filepath), 'output_' + os.path.basename(video_filepath))
   out = cv2.VideoWriter(out_filepath, fourcc, fps, (width, height))
-
   emoji = cv2.imread(emoji_filepath)
   query_faces_list = [cv2.imread(x) for x in query_face_filepath] 
   while(cap.isOpened()):
