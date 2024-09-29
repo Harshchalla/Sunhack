@@ -32,7 +32,21 @@ We built a website hosted on Amazon EC2 instance and used frontend library of St
 ## What we learned
 - Working under pressure and in a team.
 
+- Learned technologies like EC2, Mediapipe and Streamlit
+  
 - Delivering useful results within short time. 
 
 ## What's next for Masquerade
-- Integrating it into Mental Health apps so that people can open up anonymously.  
+- Integration to Mental Health Apps: Integrating it into Mental Health apps so that people can open up anonymously. 
+  
+- Improving Face Detection Accuracy: While the face detection works well, there's always room to make it even more precise, especially in varied lighting conditions or when there are multiple faces. We aim to refine the model further, possibly incorporating additional facial landmarks and improving the handling of edge cases like objects being mistaken for faces.
+
+- Automated Emoji Suggestions: We plan to revisit the idea of automatically suggesting emojis based on facial features, such as sunglasses or expressions (smiling, winking, etc.). By refining this feature and improving its accuracy, we hope to make the tool more fun and engaging for users while maintaining its core privacy functionality.
+
+- Extended Video Editing Features: We could add additional features like blur effects, background removal, or adding captions automatically to make the platform more versatile for users who want more control over their videos.
+
+- Real-time Face Masking for Live Video: A future goal could be implementing real-time face masking for live streaming or video conferencing, where privacy is equally crucial. This would take the face masking capability to a new level, especially for people concerned about privacy in live broadcasts or calls.
+
+- Integration with Social Media Platforms: Making it easier to directly share the processed videos on popular social media platforms could simplify the process for users who want to post updates while maintaining privacy.
+
+- AI-Driven Privacy Analytics: Another step could involve using AI to analyze and highlight potential privacy risks in videos beyond face masking, offering users suggestions for areas of improvement before sharing their content online.
