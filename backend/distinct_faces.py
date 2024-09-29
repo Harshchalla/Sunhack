@@ -35,15 +35,15 @@ def get_all_faces(video_path: str) -> tuple[list[np.ndarray], tuple[int, int]]:
     every_nth_frame = 1
     cntr = -1
 
-    threads = []
-    result_queue = Queue()
+    BUFFER_SIZE = 60
     def process_frame(frame: np.ndarray) -> list[np.ndarray]:
       gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
       faces = face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30))
       ret = [frame[y:y+h, x:x+w] for x, y, w, h in faces]
-      result_queue.put(ret)
+      return ret
 
 
+    frame_buffer = []
     while True:
         ret, frame = video.read()
         cntr += 1
@@ -51,26 +51,22 @@ def get_all_faces(video_path: str) -> tuple[list[np.ndarray], tuple[int, int]]:
         if (cntr % every_nth_frame) == 0:  # only select every nth frame
           if frame_hw is None:
             frame_hw = tuple(frame.shape[:2])
-          threads.append(threading.Thread(target=process_frame, args=(frame, )))
-          threads[-1].start()
-          if len(threads) >= 500:
-            for th in threads:
-              th.join()
-            # get result from thread
-            while not result_queue.empty():
-                result = result_queue.get()
-                faces_list.extend(result)
 
-            threads = []
+          if len(frame_buffer) < BUFFER_SIZE:
+            frame_buffer.append(frame)
+          else:
+            for frame in frame_buffer:
+              ret = process_frame(frame)
+              if len(ret)> 0:
+                faces_list.extend(ret)
+            frame_buffer = []
 
-    if len(threads):
-        for th in threads:
-          th.join()
-        # get result from thread
-        while not result_queue.empty():
-            result = result_queue.get()
-            faces_list.extend(result)
-
+    if len(frame_buffer):
+      for frame in frame_buffer:
+        ret = process_frame(frame)
+        if len(ret)> 0:
+          faces_list.extend(ret)
+      frame_buffer = []
     video.release()
     return faces_list, frame_hw
 
