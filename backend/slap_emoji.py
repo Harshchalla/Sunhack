@@ -60,7 +60,7 @@ def main(video_filepath: str, emoji_filepath: str, query_face_filepath: list[str
   emoji = cv2.imread(emoji_filepath)
   query_faces_embeddings = [extract_embeddings(cv2.imread(x)) for x in query_face_filepath]
 
-  buffer_size = 60
+  buffer_size = 500
   frame_buffer = []
   while(cap.isOpened()):
     ret, frame = cap.read()
