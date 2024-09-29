@@ -1,5 +1,7 @@
+import asyncio
 import cv2
 import numpy as np
+import threading
 from sklearn.cluster import DBSCAN
 
 import torch
@@ -31,6 +33,14 @@ def get_all_faces(video_path: str) -> tuple[list[np.ndarray], tuple[int, int]]:
     frame_hw = None
     every_nth_frame = 1
     cntr = -1
+
+    threads = []
+
+    def process_frame(frame) -> list[np.ndarray]:
+      gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+      faces = face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30))
+      return [frame[y:y+h, x:x+w] for x, y, w, h in faces]
+
     while True:
         ret, frame = video.read()
         cntr += 1
@@ -38,13 +48,22 @@ def get_all_faces(video_path: str) -> tuple[list[np.ndarray], tuple[int, int]]:
         if (cntr % every_nth_frame) == 0:  # only select every nth frame
           if frame_hw is None:
             frame_hw = tuple(frame.shape[:2])
-          gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-          faces = face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30))
-          ret = [frame[y:y+h, x:x+w] for x, y, w, h in faces]
+          threads.append(threading.Thread(target=process_frame, args=(frame, )))
+          threads[-1].start()
+          if len(threads) >= 100:
+            for th in threads:
+              th.join()
+            # get result from thread
+            face_frames = []
+            for th in threads:
+              face_frames.extend(th.result())
+            threads = []
           if len(ret) > 0:
               faces_list.extend(ret)
     video.release()
     return faces_list, frame_hw
+
+
 
 def prune_face_list(faces_list: list[np.ndarray], frame_hw: tuple[int, int]) -> list[np.ndarray]:
   min_area = (frame_hw[0] * frame_hw[1]) // 128
