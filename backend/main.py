@@ -66,4 +66,4 @@ if video_file is not None:
         st.session_state[f'processed_video_{video_hash}'] = processed_video_filepath
     if f'processed_video_{video_hash}' in st.session_state:
         with open(st.session_state[f'processed_video_{video_hash}'], 'rb') as f:
-            st.video(f.read())
+            st.download_button('Download Video', f.read(), 'processed_video.mov')
