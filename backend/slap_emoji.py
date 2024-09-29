@@ -10,24 +10,46 @@ from facenet_pytorch import InceptionResnetV1
 resnet = InceptionResnetV1(pretrained='vggface2').eval()
 print('Model loaded')
 
+def resize_frame(frame: np.ndarray, short_side: int) -> np.ndarray:
+    h, w = frame.shape[:2]
+    aspect_ratio = w/h
+    if aspect_ratio > 1:
+        new_w = int(aspect_ratio * short_side)
+        new_h = short_side
+    else:
+        new_w = short_side
+        new_h = int(short_side / aspect_ratio)
+    return cv2.resize(frame, (new_w, new_h))
 
+
+face_cascade = cv2.CascadeClassifier('pretrained_haarcascades/haarcascade_frontalface_default.xml')
 def slap_emoji_on_face(img: np.ndarray, emoji: np.ndarray, query_face_embeddings: list[np.ndarray]) -> np.ndarray:
-  gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-  face_cascade = cv2.CascadeClassifier('pretrained_haarcascades/haarcascade_frontalface_default.xml')
+  resized_frame = resize_frame(img, 160)
+  gray = cv2.cvtColor(resized_frame, cv2.COLOR_BGR2GRAY)
   faces = face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30))
   for query_face_embed in query_face_embeddings:
     for face in faces:
       x, y, w, h = face
-      if not is_same_face(img[y:y+h, x:x+w], query_face_embed): continue
-      resized_emoji = cv2.resize(emoji, (w, h))
+      if not is_same_face(resized_frame[y:y+h, x:x+w], query_face_embed): continue
+
+      full_y, full_x = img.shape[:2]
+      reduced_y, reduced_x = resized_frame.shape[:2]
+
+      new_x = int(x * full_x / reduced_x)
+      new_y = int(y * full_y / reduced_y)
+      new_w = int(w * full_x / reduced_x)
+      new_h = int(h * full_x / reduced_x)
+
+
+      resized_emoji = cv2.resize(emoji, (new_w, new_h))
       emoji_gray = cv2.cvtColor(resized_emoji, cv2.COLOR_BGR2GRAY)
       _, emoji_mask = cv2.threshold(emoji_gray, 10, 255, cv2.THRESH_BINARY)
       emoji_mask_inv = cv2.bitwise_not(emoji_mask)
-      face_region = img[y:y+h, x:x+w]
+      face_region = img[new_y:new_y+new_h, new_x:new_x+new_w]
       masked_face = cv2.bitwise_and(face_region, face_region, mask=emoji_mask_inv)
       masked_emoji = cv2.bitwise_and(resized_emoji, resized_emoji, mask=emoji_mask)
       combined = cv2.add(masked_face, masked_emoji)
-      img[y:y+h, x:x+w] = combined
+      img[new_y:new_y+new_h, new_x:new_x+new_w] = combined
   return img
 
 @torch.no_grad()
@@ -60,14 +82,14 @@ def main(video_filepath: str, emoji_filepath: str, query_face_filepath: list[str
   emoji = cv2.imread(emoji_filepath)
   query_faces_embeddings = [extract_embeddings(cv2.imread(x)) for x in query_face_filepath]
 
-  buffer_size = 500
+  buffer_size = 1200
   frame_buffer = []
   while(cap.isOpened()):
     ret, frame = cap.read()
     if ret == True:
       frame_buffer.append(frame)
       if len(frame_buffer) == buffer_size:
-        modified_frames = [slap_emoji_on_face(f, emoji, query_faces_embeddings) for f in frame_buffer]
+        modified_frames = [slap_emoji_on_face(frame, emoji, query_faces_embeddings) for f in frame_buffer]
         for f in modified_frames:
           out.write(f)
         frame_buffer = []

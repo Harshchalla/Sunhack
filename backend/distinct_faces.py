@@ -10,6 +10,19 @@ from facenet_pytorch import InceptionResnetV1
 resnet = InceptionResnetV1(pretrained='vggface2').eval()
 print('Model loaded')
 
+
+def resize_frame(frame: np.ndarray, short_side: int) -> np.ndarray:
+    h, w = frame.shape[:2]
+    aspect_ratio = w/h
+    if aspect_ratio > 1:
+        new_w = int(aspect_ratio * short_side)
+        new_h = short_side
+    else:
+        new_w = short_side
+        new_h = int(short_side / aspect_ratio)
+    return cv2.resize(frame, (new_w, new_h))
+
+
 @torch.no_grad()
 def extract_embeddings(face):
     face = cv2.resize(face, (160, 160))
@@ -35,7 +48,7 @@ def get_all_faces(video_path: str) -> tuple[list[np.ndarray], tuple[int, int]]:
     every_nth_frame = 1
     cntr = -1
 
-    BUFFER_SIZE = 60
+    BUFFER_SIZE = 1200
     def process_frame(frame: np.ndarray) -> list[np.ndarray]:
       gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
       faces = face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30))
@@ -53,7 +66,7 @@ def get_all_faces(video_path: str) -> tuple[list[np.ndarray], tuple[int, int]]:
             frame_hw = tuple(frame.shape[:2])
 
           if len(frame_buffer) < BUFFER_SIZE:
-            frame_buffer.append(frame)
+            frame_buffer.append(resize_frame(frame, 256))
           else:
             for frame in frame_buffer:
               ret = process_frame(frame)
@@ -81,7 +94,7 @@ def get_face_embeddings(faces_list: list[np.ndarray]) -> np.ndarray:
 
 
 def cluster_faces(face_embeddings: np.ndarray) -> list[list[int]]:
-    dbscan = DBSCAN(eps=0.5, min_samples=3, metric='cosine')
+    dbscan = DBSCAN(eps=0.3, min_samples=3, metric='cosine')
     labels = dbscan.fit_predict(face_embeddings)
     clusters = [[] for _ in range(max(labels) + 1)]
     for i, label in enumerate(labels):
