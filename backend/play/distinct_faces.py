@@ -25,7 +25,7 @@ def main(video_path: str, sess_id: str) -> str:
   return distinct_faces_zipfilepath
 
 def get_all_faces(video_path: str) -> tuple[list[np.ndarray], tuple[int, int]]:
-    face_cascade = cv2.CascadeClassifier('pretrained_haarcascades/haarcascade_frontalface_default.xml')
+    face_cascade = cv2.CascadeClassifier('../pretrained_haarcascades/haarcascade_frontalface_default.xml')
     video = cv2.VideoCapture(video_path)
     faces_list = []
     frame_hw = None
@@ -82,10 +82,10 @@ def save_zip(distinct_faces: list[np.ndarray], sess_id: str) -> str:
     import os
     from pathlib import Path
     
-    zip_filepath = f'/tmp/{sess_id}.zip'
+    zip_filepath = f'temp/{sess_id}.zip'
     with zipfile.ZipFile(zip_filepath, 'w') as zipf:
         for i, face in enumerate(distinct_faces):
-            face_path = f'/tmp/{sess_id}_{i}.png'
+            face_path = f'temp/{sess_id}_{i}.png'
             cv2.imwrite(face_path, face)
             zipf.write(face_path, arcname=f'{sess_id}_{i}.png')
             os.remove(face_path)

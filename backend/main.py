@@ -34,14 +34,9 @@ if video_file is not None:
         for face_filename in zip_ref.namelist():
             if face_filename.endswith(".png"):
                 # Create a BytesIO object from the face image data
+                # face_filename is sess_id _ <face_num>.png
+                caption = face_filename[len(sess_id)+1:]
                 face_bytes = zip_ref.read(face_filename)
                 face_bytes_io = BytesIO(face_bytes)
-                
-                # Display the face image using Streamlit
-                st.image(face_bytes_io, caption=face_filename, width=200)
-
-    # Delete the temporary folder and its contents
-    tmp_folder = f"/tmp/{sess_id}"
-    os.remove(faces_zipfilepath)
-    os.rmdir(tmp_folder)
+                st.image(face_bytes_io, caption=caption, width=200)
 
