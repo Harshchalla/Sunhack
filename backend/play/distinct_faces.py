@@ -29,7 +29,7 @@ def get_all_faces(video_path: str) -> tuple[list[np.ndarray], tuple[int, int]]:
     video = cv2.VideoCapture(video_path)
     faces_list = []
     frame_hw = None
-    every_nth_frame = 10
+    every_nth_frame = 1
     cntr = -1
     while True:
         ret, frame = video.read()
