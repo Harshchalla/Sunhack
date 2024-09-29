@@ -66,13 +66,22 @@ def main(video_filepath: str, emoji_filepath: str, query_face_filepath: list[str
   out = cv2.VideoWriter(out_filepath, fourcc, fps, (width, height))
   emoji = cv2.imread(emoji_filepath)
   query_faces_list = [cv2.imread(x) for x in query_face_filepath] 
+
+  buffer_size = 60
+  frame_buffer = []
   while(cap.isOpened()):
     ret, frame = cap.read()
     if ret == True:
-      modified_frame = slap_emoji_on_face(frame, emoji, query_faces_list)
-      out.write(modified_frame)
+      frame_buffer.append(frame)
+      if len(frame_buffer) == buffer_size:
+        modified_frames = [slap_emoji_on_face(f, emoji, query_faces_list) for f in frame_buffer]
+        for f in modified_frames:
+          out.write(f)
+        frame_buffer = []
     else:
       break
+
+
 
   cap.release()
   out.release()
@@ -85,3 +94,50 @@ if __name__ == '__main__':
   query_face_filepath = 'query_face.jpeg'
   out_fp = main(video_path, emoji_path, [query_face_filepath])
   print('Video saved at:', out_fp)
+
+
+'''
+This takes way too long ... how can I make this fast?
+Here are some optimizations you can make to improve the speed of your code:
+
+1. Use a faster face detection algorithm: The Haar cascade classifier is known to be slow. You can try using a faster face detection algorithm like the Single Shot MultiBox Detector (SSD) or the Multi-Task Cascaded Convolutional Networks (MTCNN).
+
+2. Resize the video frames: Resizing the video frames to a smaller size before processing can significantly speed up the face detection and emoji overlay process. You can resize the frames by adding the following lines of code after reading each frame:
+
+```python
+frame = cv2.resize(frame, (640, 360))
+```
+
+This will resize the frame to a width of 640 pixels and a height of 360 pixels. You can adjust these values based on your requirements.
+
+3. Use batch processing: Instead of processing each frame individually, you can process multiple frames at once using batch processing. This can be achieved by accumulating a certain number of frames in a buffer and then processing them together. You can modify the main loop in the `main` function as follows:
+
+```python
+buffer_size = 10
+frame_buffer = []
+
+while(cap.isOpened()):
+  ret, frame = cap.read()
+  if ret == True:
+    frame_buffer.append(frame)
+    if len(frame_buffer) == buffer_size:
+      modified_frames = [slap_emoji_on_face(f, emoji, query_faces_list) for f in frame_buffer]
+      for f in modified_frames:
+        out.write(f)
+      frame_buffer = []
+  else:
+    break
+```
+
+In this modified code, we accumulate frames in the `frame_buffer` until it reaches the `buffer_size`. Once the buffer is full, we process all the frames in the buffer using a list comprehension and write the modified frames to the output video. You can adjust the `buffer_size` based on your system's memory capacity and processing power.
+
+4. Use a faster video codec: The video codec used for writing the output video can also affect the processing speed. You can try using a faster codec like 'avc1' instead of 'mp4v'. Modify the line where you create the `cv2.VideoWriter` object as follows:
+
+```python
+fourcc = cv2.VideoWriter_fourcc(*'avc1')
+```
+
+5. Parallelize the face detection and emoji overlay process: You can use parallel processing techniques to distribute the workload across multiple cores of your CPU or even use a GPU for faster processing. However, implementing parallel processing can be complex and may require significant changes to your code.
+
+These optimizations should help improve the speed of your code. However, keep in mind that the actual speedup achieved may vary depending on various factors such as the size of the input video, the number of faces detected in each frame, and the processing power of your system.
+'''
