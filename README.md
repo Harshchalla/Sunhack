@@ -1,7 +1,7 @@
 # The Masquerade Project - Keep it anonymous. Reel is not real. 
-Built as a part of sunhacks.io 9/28/24 to 9/29/24 held at Arizona State University
+Built as a part of sunhacks.io 9/28/24 to 9/29/24 held at Arizona State University.
 
-Team members
+**Team members**
 
 Aastha Rastogi
 
@@ -33,7 +33,7 @@ We built a website hosted on Amazon EC2 instance and used frontend library of St
 ## What we learned
 - Working under pressure and in a team.
 
-- Learned technologies like EC2, Mediapipe and Streamlit
+- Learned technologies like EC2, Mediapipe and Streamlit. 
   
 - Delivering useful results within short time. 
 
