@@ -62,4 +62,5 @@ if video_file is not None:
         processed_video_filepath = slap_emoji.main(st.session_state[f'video_filepath_{video_hash}'], EMOJI_PATH, [f'{faces_dir}/{video_hash}_{x}' for x in selected_captions])
         st.session_state[f'processed_video_{video_hash}'] = processed_video_filepath
     if f'processed_video_{video_hash}' in st.session_state:
-        st.video(st.session_state[f'processed_video_{video_hash}'])
+        with open(st.session_state[f'processed_video_{video_hash}'], 'rb') as f:
+            st.video(f.read())
