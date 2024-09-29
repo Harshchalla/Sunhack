@@ -6,7 +6,10 @@ from sklearn.cluster import DBSCAN
 from queue import Queue
 
 import torch
-from facenet_pytorch import InceptionResnetV1
+from facenet_pytorch import MTCNN, InceptionResnetV1
+
+#load mtcnn model
+mtcnn = MTCNN()
 resnet = InceptionResnetV1(pretrained='vggface2').eval()
 print('Model loaded')
 
@@ -39,9 +42,10 @@ def get_all_faces(video_path: str) -> tuple[list[np.ndarray], tuple[int, int]]:
     result_queue = Queue()
 
     def process_frame(frame) -> list[np.ndarray]:
-      gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-      faces = face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30))
-      ret = [frame[y:y+h, x:x+w] for x, y, w, h in faces]
+      rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+      faces = mtcnn.detect(rgb_frame)
+      boxes = [face['box'] for face in faces]
+      ret = [frame[y:y+h, x:x+w] for x, y, w, h in boxes]
       result_queue.put(ret)
 
     while True:
@@ -76,7 +80,7 @@ def get_face_embeddings(faces_list: list[np.ndarray]) -> np.ndarray:
 
 
 def cluster_faces(face_embeddings: np.ndarray) -> list[list[int]]:
-    dbscan = DBSCAN(eps=0.3, min_samples=3, metric='cosine')
+    dbscan = DBSCAN(eps=0.5, min_samples=3, metric='cosine')
     labels = dbscan.fit_predict(face_embeddings)
     clusters = [[] for _ in range(max(labels) + 1)]
     for i, label in enumerate(labels):
