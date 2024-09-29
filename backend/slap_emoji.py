@@ -11,14 +11,14 @@ resnet = InceptionResnetV1(pretrained='vggface2').eval()
 print('Model loaded')
 
 
-def slap_emoji_on_face(img: np.ndarray, emoji: np.ndarray, query_faces_list: list[np.ndarray]) -> np.ndarray:
+def slap_emoji_on_face(img: np.ndarray, emoji: np.ndarray, query_face_embeddings: list[np.ndarray]) -> np.ndarray:
   gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
   face_cascade = cv2.CascadeClassifier('pretrained_haarcascades/haarcascade_frontalface_default.xml')
   faces = face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30))
-  for query_face in query_faces_list:
+  for query_face_embed in query_face_embeddings:
     for face in faces:
       x, y, w, h = face
-      if not is_same_face(img[y:y+h, x:x+w], query_face): continue
+      if not is_same_face(img[y:y+h, x:x+w], query_face_embed): continue
       resized_emoji = cv2.resize(emoji, (w, h))
       emoji_gray = cv2.cvtColor(resized_emoji, cv2.COLOR_BGR2GRAY)
       _, emoji_mask = cv2.threshold(emoji_gray, 10, 255, cv2.THRESH_BINARY)
@@ -43,20 +43,13 @@ def compare_faces(embedding1, embedding2):
 
 
 THRESHOLD = 0.5
-def is_same_face(curr_face: np.ndarray, anchor_face: np.ndarray) -> bool:
+def is_same_face(curr_face: np.ndarray, anchor_embeddings: np.ndarray) -> bool:
   curr_embeddings = extract_embeddings(curr_face)
-  anchor_embeddings = extract_embeddings(anchor_face)
   return True if cosine(curr_embeddings, anchor_embeddings) <= THRESHOLD else False
 
 
 
 def main(video_filepath: str, emoji_filepath: str, query_face_filepath: list[str]) -> str:
-  '''
-  Takes in a video and query face.
-  Slaps emoji on all instances of query face in the given video
-  saves the modified video
-  returns the modified video filepath
-  '''
   cap = cv2.VideoCapture(video_filepath)
   fps = cap.get(cv2.CAP_PROP_FPS)
   width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
@@ -65,7 +58,7 @@ def main(video_filepath: str, emoji_filepath: str, query_face_filepath: list[str
   out_filepath = os.path.join(os.path.dirname(video_filepath), 'output_' + '.'.join(os.path.basename(video_filepath).split('.')[:-1]) + '.mp4')
   out = cv2.VideoWriter(out_filepath, fourcc, fps, (width, height))
   emoji = cv2.imread(emoji_filepath)
-  query_faces_list = [cv2.imread(x) for x in query_face_filepath] 
+  query_faces_embeddings = [extract_embeddings(cv2.imread(x)) for x in query_face_filepath]
 
   buffer_size = 60
   frame_buffer = []
@@ -74,7 +67,7 @@ def main(video_filepath: str, emoji_filepath: str, query_face_filepath: list[str
     if ret == True:
       frame_buffer.append(frame)
       if len(frame_buffer) == buffer_size:
-        modified_frames = [slap_emoji_on_face(f, emoji, query_faces_list) for f in frame_buffer]
+        modified_frames = [slap_emoji_on_face(f, emoji, query_faces_embeddings) for f in frame_buffer]
         for f in modified_frames:
           out.write(f)
         frame_buffer = []
