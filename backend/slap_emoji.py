@@ -74,6 +74,13 @@ def main(video_filepath: str, emoji_filepath: str, query_face_filepath: list[str
     else:
       break
 
+  if len(frame_buffer):
+    modified_frames = [slap_emoji_on_face(f, emoji, query_faces_embeddings) for f in frame_buffer]
+    for f in modified_frames:
+      out.write(f)
+    frame_buffer = []
+
+
 
 
   cap.release()

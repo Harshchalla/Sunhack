@@ -62,6 +62,15 @@ def get_all_faces(video_path: str) -> tuple[list[np.ndarray], tuple[int, int]]:
                 faces_list.extend(result)
 
             threads = []
+
+    if len(threads):
+        for th in threads:
+          th.join()
+        # get result from thread
+        while not result_queue.empty():
+            result = result_queue.get()
+            faces_list.extend(result)
+
     video.release()
     return faces_list, frame_hw
 
