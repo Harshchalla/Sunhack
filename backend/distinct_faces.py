@@ -6,10 +6,7 @@ from sklearn.cluster import DBSCAN
 from queue import Queue
 
 import torch
-from facenet_pytorch import MTCNN, InceptionResnetV1
-
-#load mtcnn model
-mtcnn = MTCNN()
+from facenet_pytorch import InceptionResnetV1
 resnet = InceptionResnetV1(pretrained='vggface2').eval()
 print('Model loaded')
 
@@ -41,13 +38,10 @@ def get_all_faces(video_path: str) -> tuple[list[np.ndarray], tuple[int, int]]:
     threads = []
     result_queue = Queue()
     def process_frame(frame: np.ndarray) -> list[np.ndarray]:
-      rgb_frame: np.ndarray = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-      faces = mtcnn.detect(rgb_frame)
-      if faces:
-          ret: list[np.ndarray] = [frame[y1:y2, x1:x2] for x1, y1, x2, y2 in faces.astype(np.int32)]
-          print(type(ret[0]))
-          breakpoint()
-          result_queue.put(ret)
+      gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+      faces = face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30))
+      ret = [frame[y:y+h, x:x+w] for x, y, w, h in faces]
+      result_queue.put(ret)
 
 
     while True:
@@ -59,7 +53,7 @@ def get_all_faces(video_path: str) -> tuple[list[np.ndarray], tuple[int, int]]:
             frame_hw = tuple(frame.shape[:2])
           threads.append(threading.Thread(target=process_frame, args=(frame, )))
           threads[-1].start()
-          if len(threads) >= 100:
+          if len(threads) >= 500:
             for th in threads:
               th.join()
             # get result from thread
