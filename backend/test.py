@@ -179,7 +179,7 @@ def load_filter(filter_name="dog"):
 # === 
 
 
-
+video_filepath = './play/trial_video.mov'
 cap = cv2.VideoCapture(video_filepath)
 fps = cap.get(cv2.CAP_PROP_FPS)
 width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
