@@ -43,8 +43,21 @@ def process_video(video_file):
 # Streamlit
 # ===
 st.title("Welcome to The Masquerade")
-video_file = st.file_uploader("Upload a video", type=["mp4", "avi", "mov"])
+# get 2 streamlit cols
+col1, col2 = st.beta_columns(2)
+video_file = col1.file_uploader("Upload a video", type=["mp4", "avi", "mov"])
+if 'emoji_path' not in st.session_state:
+    st.session_state['emoji_path'] = EMOJI_PATH
 
+emoji = col2.file_uploader('Upload a mask', type=['png', 'jpg', 'jpeg'])
+# save the mask at a path
+if emoji is not None:
+    mask_path = 'uploaded_mask.png'
+    with open(mask_path, 'wb') as f:
+        f.write(emoji.getvalue())
+    st.session_state['emoji_path'] = mask_path
+    # show the mask in col2
+    col2.image(emoji, use_column_width=True)
 
 if video_file is not None:
     faces_dir, video_hash = process_video(video_file)
@@ -60,7 +73,7 @@ if video_file is not None:
     selected_captions = st.multiselect("Select the distinct faces", captions_list)
     # add a submit button
     if st.button("Submit"):
-        processed_video_filepath = slap_emoji.main(st.session_state[f'video_filepath_{video_hash}'], EMOJI_PATH, [f'{faces_dir}/{video_hash}_{x}' for x in selected_captions])
+        processed_video_filepath = slap_emoji.main(st.session_state[f'video_filepath_{video_hash}'], st.session_state['emoji_path'], [f'{faces_dir}/{video_hash}_{x}' for x in selected_captions])
         st.session_state[f'processed_video_{video_hash}'] = processed_video_filepath
     if f'processed_video_{video_hash}' in st.session_state:
         with open(st.session_state[f'processed_video_{video_hash}'], 'rb') as f:
