@@ -44,8 +44,8 @@ def get_all_faces(video_path: str) -> tuple[list[np.ndarray], tuple[int, int]]:
       rgb_frame: np.ndarray = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
       faces = mtcnn.detect(rgb_frame)[0]
       if faces is not None:
-          ret: list[np.ndarray] = [frame[y1:y2, x1:x2] for x1, y1, x2, y2 in faces.astype(np.int32)]
-          result_queue.put(ret)
+        ret: list[np.ndarray] = [frame[y:y+h, x:x+w] for x, y, w, h in faces.astype(np.int32)]
+        result_queue.put(ret)
 
 
     while True:
