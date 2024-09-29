@@ -1,3 +1,16 @@
+# The Masquerade Project - Keep it anonymous. Reel is not real. 
+Built as a part of sunhacks.io 9/28/24 to 9/29/24 held at Arizona State University
+
+Team members
+
+Aastha Rastogi
+
+Anshika Pandey
+
+Harsh Victor Challa 
+
+Rohan Ahwad
+
 ## Inspiration
 Sometimes parents want to share their life updates with family but more often than not they don't want to share their kids faces to keep them away from the reel life. Putting young children's picture on social media raises a possibility of identity theft Risk. By 2030, it's estimated that two-thirds of identity fraud cases involving young people will stem from "sharenting". Blurring out faces in videos is not straightforward and it requires expertise in video editing. 
 
