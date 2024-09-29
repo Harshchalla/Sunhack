@@ -33,7 +33,7 @@ def extract_embeddings(face):
     face = cv2.resize(face, (160, 160))
     face = face.astype('float32')
     face = (face - 127.5) / 127.5
-    embedding = resnet(torch.tensor(face).permute(2, 0, 1).unsqueeze(0).float())
+    embedding = resnet(torch.tensor(face).permute(2, 0, 1).unsqueeze(0).float()).squeeze().numpy()
     return embedding
 
 def compare_faces(embedding1, embedding2):
