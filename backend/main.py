@@ -1,12 +1,47 @@
 import streamlit as st
 import distinct_faces
 
+import os
+import uuid
+from zipfile import ZipFile
+from io import BytesIO
+
+def save_video_tmp(video_file):
+    sess_id = str(uuid.uuid4())
+    tmp_folder = f"/tmp/{sess_id}"
+    os.makedirs(tmp_folder, exist_ok=True)
+    video_filepath = os.path.join(tmp_folder, video_file.name)
+    with open(video_filepath, "wb") as f:
+        f.write(video_file.read())
+    return video_filepath, sess_id
+
+
+# ===
+# Streamlit
+# ===
 st.title("Video Upload App")
 video_file = st.file_uploader("Upload a video", type=["mp4", "avi", "mov"])
 
+
 if video_file is not None:
-    st.video(video_file)
     # save the video file in a tmp folder
     # create a new sess id using uuid
     # call distinct_faces.main(video_filepath, sess_id)
-    # get a filepath to a zip that has pngs, which represent faces. show that to user
+    video_filepath, sess_id = save_video_tmp(video_file)
+    faces_zipfilepath = distinct_faces.main(video_filepath, sess_id)
+    # read and show all the faces png that are present in the zip filepath
+    with ZipFile(faces_zipfilepath, 'r') as zip_ref:
+        for face_filename in zip_ref.namelist():
+            if face_filename.endswith(".png"):
+                # Create a BytesIO object from the face image data
+                face_bytes = zip_ref.read(face_filename)
+                face_bytes_io = BytesIO(face_bytes)
+                
+                # Display the face image using Streamlit
+                st.image(face_bytes_io, caption=face_filename, width=200)
+
+    # Delete the temporary folder and its contents
+    tmp_folder = f"/tmp/{sess_id}"
+    os.remove(faces_zipfilepath)
+    os.rmdir(tmp_folder)
+
