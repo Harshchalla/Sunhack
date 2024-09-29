@@ -30,6 +30,7 @@ if video_file is not None:
     video_filepath, sess_id = save_video_tmp(video_file)
     faces_zipfilepath = distinct_faces.main(video_filepath, sess_id)
     # read and show all the faces png that are present in the zip filepath
+    captions_list: list[str] = []
     with ZipFile(faces_zipfilepath, 'r') as zip_ref:
         for face_filename in zip_ref.namelist():
             if face_filename.endswith(".png"):
@@ -39,4 +40,14 @@ if video_file is not None:
                 face_bytes = zip_ref.read(face_filename)
                 face_bytes_io = BytesIO(face_bytes)
                 st.image(face_bytes_io, caption=caption, width=200)
+                captions_list.append(caption)
 
+    # ask user for multiple selection. The options are captions
+    selected_captions = st.multiselect("Select the distinct faces", captions_list)
+
+    # clean up the tmp folder after the user has downloaded the selected faces or moved on to the next page
+    if st.button("Clean Up"):
+        if os.path.exists(tmp_folder):
+            os.remove(faces_zipfilepath)
+            os.rmdir(tmp_folder)
+            st.success("Temporary files cleaned up.")
