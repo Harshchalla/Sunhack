@@ -33,7 +33,7 @@ def process_video(video_file):
         video_filepath, sess_id = save_video_tmp(video_file)
         faces_zipfilepath = distinct_faces.main(video_filepath, sess_id)
         st.session_state[f"faces_zipfilepath_{video_hash}"] = faces_zipfilepath
-    return st.session_state[f"faces_zipfilepath_{video_hash}"]
+    return st.session_state[f"faces_zipfilepath_{video_hash}"], sess_id
 
 # ===
 # Streamlit
@@ -42,7 +42,7 @@ st.title("Video Upload App")
 video_file = st.file_uploader("Upload a video", type=["mp4", "avi", "mov"])
 
 if video_file is not None:
-    faces_zipfilepath = process_video(video_file)
+    faces_zipfilepath, sess_id = process_video(video_file)
     captions_list: list[str] = []
     with ZipFile(faces_zipfilepath, 'r') as zip_ref:
         for face_filename in zip_ref.namelist():
