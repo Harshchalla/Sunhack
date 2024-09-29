@@ -44,7 +44,7 @@ def process_video(video_file):
 # ===
 st.title("Welcome to The Masquerade")
 # get 2 streamlit cols
-col1, col2 = st.beta_columns(2)
+col1, col2 = st.columns(2)
 video_file = col1.file_uploader("Upload a video", type=["mp4", "avi", "mov"])
 if 'emoji_path' not in st.session_state:
     st.session_state['emoji_path'] = EMOJI_PATH
@@ -56,11 +56,14 @@ if emoji is not None:
     with open(mask_path, 'wb') as f:
         f.write(emoji.getvalue())
     st.session_state['emoji_path'] = mask_path
+with open(st.session_state['emoji_path'], 'rb') as f:
     # show the mask in col2
-    col2.image(emoji, use_column_width=True)
+    col2.image(f.read(), use_column_width=True)
 
 if video_file is not None:
-    faces_dir, video_hash = process_video(video_file)
+    with col1:
+        with st.spinner('Gathering faces ...'):
+            faces_dir, video_hash = process_video(video_file)
     captions_list: list[str] = []
     for face_filename in os.listdir(faces_dir):
         if face_filename.endswith(".png"):
@@ -68,13 +71,14 @@ if video_file is not None:
             with open(f'{faces_dir}/{face_filename}', 'rb') as f:
                 face_bytes = f.read()
             face_bytes_io = BytesIO(face_bytes)
-            st.image(face_bytes_io, caption=caption, width=200)
+            col1.image(face_bytes_io, caption=caption, width=200)
             captions_list.append(caption)
     selected_captions = st.multiselect("Select the distinct faces", captions_list)
     # add a submit button
     if st.button("Submit"):
-        processed_video_filepath = slap_emoji.main(st.session_state[f'video_filepath_{video_hash}'], st.session_state['emoji_path'], [f'{faces_dir}/{video_hash}_{x}' for x in selected_captions])
-        st.session_state[f'processed_video_{video_hash}'] = processed_video_filepath
+        with st.spinner('Creating video ... '):
+            processed_video_filepath = slap_emoji.main(st.session_state[f'video_filepath_{video_hash}'], st.session_state['emoji_path'], [f'{faces_dir}/{video_hash}_{x}' for x in selected_captions])
+            st.session_state[f'processed_video_{video_hash}'] = processed_video_filepath
     if f'processed_video_{video_hash}' in st.session_state:
         with open(st.session_state[f'processed_video_{video_hash}'], 'rb') as f:
             st.download_button('Download Video', f.read(), 'processed_video.mov')

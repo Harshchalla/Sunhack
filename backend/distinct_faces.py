@@ -55,7 +55,7 @@ def get_face_embeddings(faces_list: list[np.ndarray]) -> np.ndarray:
 
 
 def cluster_faces(face_embeddings: np.ndarray) -> list[list[int]]:
-    dbscan = DBSCAN(eps=0.5, min_samples=3, metric='cosine')
+    dbscan = DBSCAN(eps=0.3, min_samples=3, metric='cosine')
     labels = dbscan.fit_predict(face_embeddings)
     clusters = [[] for _ in range(max(labels) + 1)]
     for i, label in enumerate(labels):
