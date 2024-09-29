@@ -21,8 +21,8 @@ def main(video_path: str, sess_id: str) -> str:
   face_embeddings: np.ndarray = get_face_embeddings(pruned_faces_list)
   clusters: list[list[int]] = cluster_faces(face_embeddings)  # does clustering using DBSCAN and returns indices of faces within cluster
   distinct_faces: list[np.ndarray] = get_cluster_centroids(clusters, face_embeddings, pruned_faces_list)
-  distinct_faces_zipfilepath: str = save_zip(distinct_faces, sess_id)
-  return distinct_faces_zipfilepath
+  distinct_faces_dir: str = save_faces(distinct_faces, sess_id)
+  return distinct_faces_dir
 
 def get_all_faces(video_path: str) -> tuple[list[np.ndarray], tuple[int, int]]:
     face_cascade = cv2.CascadeClassifier('pretrained_haarcascades/haarcascade_frontalface_default.xml')
@@ -77,19 +77,20 @@ def get_cluster_centroids(clusters: list[list[int]], face_embeddings: np.ndarray
         distinct_faces.append(centroid_face)
     return distinct_faces
 
-def save_zip(distinct_faces: list[np.ndarray], sess_id: str) -> str:
-    import zipfile
+
+
+def save_faces(distinct_faces: list[np.ndarray], sess_id: str) -> str:
     import os
     from pathlib import Path
+
+    folder_path = f'/tmp/{sess_id}'
+    os.makedirs(folder_path, exist_ok=True)
     
-    zip_filepath = f'/tmp/{sess_id}.zip'
-    with zipfile.ZipFile(zip_filepath, 'w') as zipf:
-        for i, face in enumerate(distinct_faces):
-            face_path = f'/tmp/{sess_id}_{i}.png'
-            cv2.imwrite(face_path, face)
-            zipf.write(face_path, arcname=f'{sess_id}_{i}.png')
-            os.remove(face_path)
-    return zip_filepath
+    for i, face in enumerate(distinct_faces):
+        face_path = f'{folder_path}/{sess_id}_{i}.png'
+        cv2.imwrite(face_path, face)
+    
+    return folder_path
 
 if __name__ == '__main__':
   video_path = './trial_video.mov'

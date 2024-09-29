@@ -1,4 +1,3 @@
-import distinct_faces
 import hashlib
 import streamlit as st
 
@@ -7,6 +6,11 @@ import uuid
 from zipfile import ZipFile
 from io import BytesIO
 
+
+import distinct_faces
+import slap_emoji
+
+EMOJI_PATH = './smiling_emoji.png'
 def calculate_video_hash(video_file):
     """Calculate a hash of the video file"""
     hash = hashlib.sha256()
@@ -30,9 +34,10 @@ def process_video(video_file):
     video_hash = calculate_video_hash(video_file)
     if f"faces_zipfilepath_{video_hash}" not in st.session_state:
         video_filepath = save_video_tmp(video_file, video_hash)
-        faces_zipfilepath = distinct_faces.main(video_filepath, video_hash)
-        st.session_state[f"faces_zipfilepath_{video_hash}"] = faces_zipfilepath
-    return st.session_state[f"faces_zipfilepath_{video_hash}"], video_hash
+        faces_dir = distinct_faces.main(video_filepath, video_hash)
+        st.session_state[f"faces_dir_{video_hash}"] = faces_dir
+        st.session_state[f"video_filepath_{video_hash}"] = video_filepath
+    return st.session_state[f"faces_dir_{video_hash}"], video_hash
 
 # ===
 # Streamlit
@@ -41,17 +46,21 @@ st.title("Video Upload App")
 video_file = st.file_uploader("Upload a video", type=["mp4", "avi", "mov"])
 
 if video_file is not None:
-    faces_zipfilepath, video_hash = process_video(video_file)
+    faces_dir, video_hash = process_video(video_file)
     captions_list: list[str] = []
-    with ZipFile(faces_zipfilepath, 'r') as zip_ref:
-        for face_filename in zip_ref.namelist():
-            if face_filename.endswith(".png"):
-                caption = face_filename[len(video_hash)+1:]
-                face_bytes = zip_ref.read(face_filename)
-                face_bytes_io = BytesIO(face_bytes)
-                st.image(face_bytes_io, caption=caption, width=200)
-                captions_list.append(caption)
+    for face_filename in os.listdir(faces_dir):
+        if face_filename.endswith(".png"):
+            caption = face_filename[len(video_hash)+1:]
+            with open(f'{faces_dir}/{face_filename}', 'rb') as f:
+                face_bytes = f.read(face_filename)
+            face_bytes_io = BytesIO(face_bytes)
+            st.image(face_bytes_io, caption=caption, width=200)
+            captions_list.append(caption)
     selected_captions = st.multiselect("Select the distinct faces", captions_list)
     # add a submit button
     if st.button("Submit"):
-        pass
+        processed_video_filepath = slap_emoji.main(st.session_state[f'video_filepath_{video_hash}'], EMOJI_PATH, [f'{faces_dir}/{video_hash}_{x}' for x in selected_captions])
+        # display this processed video
+        st.video(processed_video_filepath)
+    else:
+        st.info("Please upload a video file.")
