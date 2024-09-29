@@ -26,7 +26,7 @@ We built a website hosted on Amazon EC2 instance and used frontend library of St
 - We tried extending our project such that the video auto suggests emoji's or mask, based on the person's face. For example, if the person is wearing shades, they would have the 😎 emoji, or if the person is blushing they would have 😊 emoji. On some research, we found a way to manually find the significant face landmarks so that we can find the emoji. We decided to discard the idea since it lacked accuracy and would be too time-consuming, which wasn't feasible within the hackathon's time constraints. 
 
 ## Accomplishments that we're proud of
-- Building for Social Cause, preventing identity theft.
+- Building for Social Cause, preventing identity theft. Sharing children's images online makes them vulnerable to exploitation or abuse, as predators may target their digital footprint.
   
 - Successfully delivering what we initially thought of, and meeting our requirements. 
 
