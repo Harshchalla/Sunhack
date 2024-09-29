@@ -60,7 +60,6 @@ if video_file is not None:
     # add a submit button
     if st.button("Submit"):
         processed_video_filepath = slap_emoji.main(st.session_state[f'video_filepath_{video_hash}'], EMOJI_PATH, [f'{faces_dir}/{video_hash}_{x}' for x in selected_captions])
-        # display this processed video
-        st.video(processed_video_filepath)
-    else:
-        st.info("Please upload a video file.")
+        st.session_state[f'processed_video_{video_hash}'] = processed_video_filepath
+    if f'processed_video_{video_hash}' in st.session_state:
+        st.video(st.session_state[f'processed_video_{video_hash}'])
