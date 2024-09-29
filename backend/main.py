@@ -45,6 +45,7 @@ def process_video(video_file):
 st.title("Welcome to The Masquerade")
 video_file = st.file_uploader("Upload a video", type=["mp4", "avi", "mov"])
 
+
 if video_file is not None:
     faces_dir, video_hash = process_video(video_file)
     captions_list: list[str] = []

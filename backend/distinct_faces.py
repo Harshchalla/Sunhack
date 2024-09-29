@@ -85,7 +85,6 @@ def save_faces(distinct_faces: list[np.ndarray], sess_id: str) -> str:
 
     folder_path = f'/tmp/{sess_id}'
     os.makedirs(folder_path, exist_ok=True)
-    
     for i, face in enumerate(distinct_faces):
         face_path = f'{folder_path}/{sess_id}_{i}.png'
         cv2.imwrite(face_path, face)
