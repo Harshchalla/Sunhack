@@ -316,4 +316,175 @@ def slap_emoji_on_face(img: np.ndarray, emoji: np.ndarray, query_face_embeddings
 - **Use the Copy**: Replace operations on `img` with `img_copy`.
 
 This should resolve the `ValueError` by ensuring that you are working on a writable frame.
+
+There is no audio
+To ensure the audio is retained in the processed video, you should verify that the original video contains an audio track and that MoviePy is set up correctly to copy that audio track to the new video. Here are a few steps to troubleshoot and ensure audio is included:
+
+1. **Verify Original Audio**: Check that the original video file (`trial_video.mov`) has an audio track. You can do this by playing the video in a media player.
+
+2. **Ensure Correct Audio Handling**: Make sure you're setting the audio in MoviePy correctly:
+
+   ```python
+   processed_video = video.fl_image(lambda frame: process_frame(frame, emoji, query_faces_embeddings))
+   processed_video = processed_video.set_audio(video.audio)
+   ```
+
+3. **Check Codec Support**: Ensure that the codec used supports audio tracks. `libx264` generally supports audio, but check if the container format (e.g., `.mov`) requires a specific codec for audio.
+
+4. **Install FFmpeg**: Make sure FFmpeg is installed and properly configured since MoviePy relies on it for video and audio processing. You can install it via your package manager or download it from the FFmpeg website.
+
+5. **Debug with MoviePy**: Enable verbose logging in MoviePy to see if there are any warnings or errors related to audio:
+
+   ```python
+   processed_video.set_audio(video.audio).write_videofile(out_filepath, codec=codec, verbose=True, logger='bar')
+   ```
+
+If all of the above are set correctly and you still don't hear audio, try converting the video to a more common format like `.mp4` with audio to see if the issue persists. This can help identify if the problem is with the final video format or the processing steps.
+
+
+This is too slow, can't we do it in some sort of frame buffer?
+
+
+To improve performance, you can indeed use a buffer to process frames in batches rather than individually. However, `MoviePy` processes video one frame at a time by default. To implement a frame buffer, you'd need to manage frame batches manually, which can be complex. Here’s a simpler optimization using a frame buffer approach:
+
+1. **Buffer Processing**: Group frames into batches and process them together. However, ensure that video processing (especially if it's dependent on sequential frames) aligns with this approach.
+
+2. **Parallel Processing**: Use multi-threading or multi-processing to handle frame processing in parallel.
+
+Let's focus on a parallel processing approach:
+
+```python
+from moviepy.editor import VideoFileClip
+from multiprocessing import Pool
+import cv2
+import numpy as np
+import os
+
+def slap_emoji_on_face_buffer(frames, emoji, query_face_embeddings):
+    processed_frames = []
+    for frame in frames:
+        processed_frame = slap_emoji_on_face(frame, emoji, query_face_embeddings)
+        processed_frames.append(processed_frame)
+    return processed_frames
+
+def process_frame(frame: np.ndarray, emoji: np.ndarray, query_face_embeddings: list[np.ndarray]) -> np.ndarray:
+    return slap_emoji_on_face(frame, emoji, query_face_embeddings)
+
+def main_with_moviepy(video_filepath: str, emoji_filepath: str, query_face_filepath: list[str]) -> str:
+    emoji = cv2.imread(emoji_filepath)
+    query_faces_embeddings = [extract_embeddings(cv2.imread(x)) for x in query_face_filepath]
+    
+    video = VideoFileClip(video_filepath)
+    out_filepath = os.path.join(
+        os.path.dirname(video_filepath),
+        'output_' + os.path.basename(video_filepath)
+    )
+    codec = 'libx264'  # Default, adjust as needed
+
+    # Convert video frames into numpy arrays for processing
+    frames = list(video.iter_frames(fps=video.fps, dtype="uint8"))
+
+    # Use multiprocessing to speed up frame processing
+    num_processors = os.cpu_count()
+    chunk_size = len(frames) // num_processors
+
+    with Pool(processes=num_processors) as pool:
+        processed_frames = pool.starmap(
+            slap_emoji_on_face_buffer, 
+            [(frames[i:i + chunk_size], emoji, query_faces_embeddings) for i in range(0, len(frames), chunk_size)]
+        )
+
+    # Flatten the list of lists
+    processed_frames = [frame for sublist in processed_frames for frame in sublist]
+
+    # Convert processed frames back to a video
+    processed_video = video.set_frames(processed_frames)
+
+    # Write the video with the original audio
+    processed_video.set_audio(video.audio).write_videofile(out_filepath, codec=codec)
+
+    return out_filepath
+
+if __name__ == '__main__':
+    video_path = 'trial_video.mov'
+    emoji_path = './smiling_emoji.png'
+    query_face_filepath = 'query_face.jpeg'
+    out_fp = main_with_moviepy(video_path, emoji_path, [query_face_filepath])
+    print('Video saved at:', out_fp)
+```
+
+### Key Points:
+- **Multiprocessing**: Utilize `multiprocessing.Pool` to process frames in parallel, which can significantly speed up processing.
+- **Frame Buffering**: Convert video frames into a list for buffered processing. This approach can be adapted to batch frames.
+- **Chunking**: Divide frames into chunks based on CPU count for parallel processing.
+
+Keep in mind that video processing is inherently intensive and improvements may vary based on system capabilities and video complexity. This approach should enhance performance by leveraging parallel processing.
+
+
+
+Give me buffer processing approach
+
+To implement a buffer processing approach, we'll process frames in chunks (buffers) instead of individually. This reduces overhead and can improve performance for batch operations. Below is a simple example using a frame buffer:
+
+```python
+from moviepy.editor import VideoFileClip, concatenate_videoclips
+import cv2
+import numpy as np
+import os
+
+def slap_emoji_on_face_buffer(frames, emoji, query_face_embeddings):
+    processed_frames = []
+    for frame in frames:
+        processed_frame = slap_emoji_on_face(frame, emoji, query_face_embeddings)
+        processed_frames.append(processed_frame)
+    return processed_frames
+
+def process_buffered_frames(video_filepath, emoji, query_face_embeddings, buffer_size):
+    video = VideoFileClip(video_filepath)
+    frames = list(video.iter_frames(fps=video.fps, dtype='uint8'))
+    clips = []
+
+    for i in range(0, len(frames), buffer_size):
+        buffer = frames[i:i + buffer_size]
+        processed_buffer = slap_emoji_on_face_buffer(buffer, emoji, query_face_embeddings)
+        clip = VideoFileClip(np.array(processed_buffer), fps=video.fps)
+        clips.append(clip)
+
+    # Concatenate processed clips
+    final_clip = concatenate_videoclips(clips)
+    return final_clip
+
+def main_with_buffer(video_filepath, emoji_filepath, query_face_filepath):
+    emoji = cv2.imread(emoji_filepath)
+    query_faces_embeddings = [extract_embeddings(cv2.imread(x)) for x in query_face_filepath]
+
+    buffer_size = 30  # Set buffer size based on desired batch processing
+    processed_video = process_buffered_frames(video_filepath, emoji, query_faces_embeddings, buffer_size)
+
+    out_filepath = os.path.join(os.path.dirname(video_filepath), 'output_' + os.path.basename(video_filepath))
+    codec = 'libx264'  # Adjust codec as needed
+
+    # Write the video with the original audio
+    processed_video.set_audio(VideoFileClip(video_filepath).audio).write_videofile(out_filepath, codec=codec)
+
+    return out_filepath
+
+if __name__ == '__main__':
+    video_path = 'trial_video.mov'
+    emoji_path = './smiling_emoji.png'
+    query_face_filepath = 'query_face.jpeg'
+    out_fp = main_with_buffer(video_path, emoji_path, [query_face_filepath])
+    print('Video saved at:', out_fp)
+```
+
+### Key Points:
+- **Buffer Size**: Choose an appropriate buffer size based on your system's memory capacity and desired processing speed.
+- **Batch Processing**: Process frames in batches (buffers) and concatenate results.
+- **Concatenate Clips**: Use `concatenate_videoclips` from `MoviePy` to stitch processed clips back together into a single video.
+
+This approach manages frame processing in manageable chunks and can lead to performance gains, especially for resource-intensive operations.
+
+
+
 '''
+
