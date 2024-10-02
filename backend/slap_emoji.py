@@ -25,33 +25,36 @@ def resize_frame(frame: np.ndarray, short_side: int) -> np.ndarray:
 
 face_cascade = cv2.CascadeClassifier('pretrained_haarcascades/haarcascade_frontalface_default.xml')
 def slap_emoji_on_face(img: np.ndarray, emoji: np.ndarray, query_face_embeddings: list[np.ndarray]) -> np.ndarray:
-  resized_frame = resize_frame(img, 160)
-  gray = cv2.cvtColor(resized_frame, cv2.COLOR_BGR2GRAY)
-  faces = face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30))
-  for query_face_embed in query_face_embeddings:
-    for face in faces:
-      x, y, w, h = face
-      if not is_same_face(resized_frame[y:y+h, x:x+w], query_face_embed): continue
+    img_copy = img.copy()  # Create a writable copy of the frame
+    resized_frame = resize_frame(img_copy, 160)
+    gray = cv2.cvtColor(resized_frame, cv2.COLOR_BGR2GRAY)
+    faces = face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30))
+    
+    for query_face_embed in query_face_embeddings:
+        for face in faces:
+            x, y, w, h = face
+            if not is_same_face(resized_frame[y:y+h, x:x+w], query_face_embed):
+                continue
 
-      full_y, full_x = img.shape[:2]
-      reduced_y, reduced_x = resized_frame.shape[:2]
+            full_y, full_x = img_copy.shape[:2]
+            reduced_y, reduced_x = resized_frame.shape[:2]
 
-      new_x = int(x * full_x / reduced_x)
-      new_y = int(y * full_y / reduced_y)
-      new_w = int(w * full_x / reduced_x)
-      new_h = int(h * full_x / reduced_x)
+            new_x = int(x * full_x / reduced_x)
+            new_y = int(y * full_y / reduced_y)
+            new_w = int(w * full_x / reduced_x)
+            new_h = int(h * full_x / reduced_x)
 
+            resized_emoji = cv2.resize(emoji, (new_w, new_h))
+            emoji_gray = cv2.cvtColor(resized_emoji, cv2.COLOR_BGR2GRAY)
+            _, emoji_mask = cv2.threshold(emoji_gray, 10, 255, cv2.THRESH_BINARY)
+            emoji_mask_inv = cv2.bitwise_not(emoji_mask)
+            face_region = img_copy[new_y:new_y+new_h, new_x:new_x+new_w]
+            masked_face = cv2.bitwise_and(face_region, face_region, mask=emoji_mask_inv)
+            masked_emoji = cv2.bitwise_and(resized_emoji, resized_emoji, mask=emoji_mask)
+            combined = cv2.add(masked_face, masked_emoji)
+            img_copy[new_y:new_y+new_h, new_x:new_x+new_w] = combined
 
-      resized_emoji = cv2.resize(emoji, (new_w, new_h))
-      emoji_gray = cv2.cvtColor(resized_emoji, cv2.COLOR_BGR2GRAY)
-      _, emoji_mask = cv2.threshold(emoji_gray, 10, 255, cv2.THRESH_BINARY)
-      emoji_mask_inv = cv2.bitwise_not(emoji_mask)
-      face_region = img[new_y:new_y+new_h, new_x:new_x+new_w]
-      masked_face = cv2.bitwise_and(face_region, face_region, mask=emoji_mask_inv)
-      masked_emoji = cv2.bitwise_and(resized_emoji, resized_emoji, mask=emoji_mask)
-      combined = cv2.add(masked_face, masked_emoji)
-      img[new_y:new_y+new_h, new_x:new_x+new_w] = combined
-  return img
+    return img_copy
 
 @torch.no_grad()
 def extract_embeddings(face):
@@ -257,4 +260,60 @@ if __name__ == '__main__':
 - **`MoviePy` Limitations**: Be aware that `MoviePy` has its own set of supported codecs which are reliant on `ffmpeg`. Ensure that the codecs you choose are available in your `ffmpeg` installation.
 
 This approach gives you control over the codec based on the file type and can help maintain compatibility with the original format if `ffmpeg` and `MoviePy` support it.
+
+
+
+    processed_video.set_audio(video.audio).write_videofile(out_filepath, codec=codec)
+
+File "/home/ubuntu/Sunhack/backend/slap_emoji.py", line 84, in <lambda>
+    processed_video = video.fl_image(lambda frame: slap_emoji_on_face(frame, emoji, query_faces_embeddings))
+                                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+File "/home/ubuntu/Sunhack/backend/slap_emoji.py", line 53, in slap_emoji_on_face
+    img[new_y:new_y+new_h, new_x:new_x+new_w] = combined
+
+ValueError: assignment destination is read-only
+
+
+
+The error you're encountering is due to the fact that the image frames extracted using `MoviePy` are read-only. You need to make a copy of the frame before modifying it. Here's how you can fix this:
+
+```python
+def slap_emoji_on_face(img: np.ndarray, emoji: np.ndarray, query_face_embeddings: list[np.ndarray]) -> np.ndarray:
+    img_copy = img.copy()  # Create a writable copy of the frame
+    resized_frame = resize_frame(img_copy, 160)
+    gray = cv2.cvtColor(resized_frame, cv2.COLOR_BGR2GRAY)
+    faces = face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30))
+    
+    for query_face_embed in query_face_embeddings:
+        for face in faces:
+            x, y, w, h = face
+            if not is_same_face(resized_frame[y:y+h, x:x+w], query_face_embed):
+                continue
+
+            full_y, full_x = img_copy.shape[:2]
+            reduced_y, reduced_x = resized_frame.shape[:2]
+
+            new_x = int(x * full_x / reduced_x)
+            new_y = int(y * full_y / reduced_y)
+            new_w = int(w * full_x / reduced_x)
+            new_h = int(h * full_x / reduced_x)
+
+            resized_emoji = cv2.resize(emoji, (new_w, new_h))
+            emoji_gray = cv2.cvtColor(resized_emoji, cv2.COLOR_BGR2GRAY)
+            _, emoji_mask = cv2.threshold(emoji_gray, 10, 255, cv2.THRESH_BINARY)
+            emoji_mask_inv = cv2.bitwise_not(emoji_mask)
+            face_region = img_copy[new_y:new_y+new_h, new_x:new_x+new_w]
+            masked_face = cv2.bitwise_and(face_region, face_region, mask=emoji_mask_inv)
+            masked_emoji = cv2.bitwise_and(resized_emoji, resized_emoji, mask=emoji_mask)
+            combined = cv2.add(masked_face, masked_emoji)
+            img_copy[new_y:new_y+new_h, new_x:new_x+new_w] = combined
+
+    return img_copy
+```
+
+### Key Changes:
+- **Copy the Frame**: Before making any changes, create a copy of the frame using `img.copy()`. This allows you to modify the copy while keeping the original frame intact and writable.
+- **Use the Copy**: Replace operations on `img` with `img_copy`.
+
+This should resolve the `ValueError` by ensuring that you are working on a writable frame.
 '''
