@@ -47,7 +47,7 @@ def get_all_faces(video_path: str) -> tuple[list[np.ndarray], tuple[int, int]]:
     return faces_list, frame_hw
 
 def prune_face_list(faces_list: list[np.ndarray], frame_hw: tuple[int, int]) -> list[np.ndarray]:
-  min_area = (frame_hw[0] * frame_hw[1]) // 128
+  min_area = (frame_hw[0] * frame_hw[1]) / 512 
   return [face for face in faces_list if (len(face) * len(face[0])) >= min_area]
 
 def get_face_embeddings(faces_list: list[np.ndarray]) -> np.ndarray:

@@ -68,7 +68,7 @@ def compare_faces(embedding1, embedding2):
     return cosine(embedding1, embedding2)
 
 
-THRESHOLD = 0.5
+THRESHOLD = 1
 def is_same_face(curr_face: np.ndarray, anchor_embeddings: np.ndarray) -> bool:
   curr_embeddings = extract_embeddings(curr_face)
   return True if cosine(curr_embeddings, anchor_embeddings) <= THRESHOLD else False
