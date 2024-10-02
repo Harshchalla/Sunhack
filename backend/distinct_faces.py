@@ -38,6 +38,7 @@ def main(video_path: str, sess_id: str) -> str:
   clusters: list[list[int]] = cluster_faces(face_embeddings)  # does clustering using DBSCAN and returns indices of faces within cluster
   distinct_faces: list[np.ndarray] = get_cluster_centroids(clusters, face_embeddings, pruned_faces_list)
   distinct_faces_dir: str = save_faces(distinct_faces, sess_id)
+  all_faces_dir: str = save_faces_zip(faces_list, sess_id)
   return distinct_faces_dir
 
 def get_all_faces(video_path: str) -> tuple[list[np.ndarray], tuple[int, int]]:
@@ -130,6 +131,26 @@ def save_faces(distinct_faces: list[np.ndarray], sess_id: str) -> str:
     
     return folder_path
 
+def save_faces_zip(faces_list: list[np.ndarray], sess_id: str) -> str:
+    import os
+    import zipfile
+    from pathlib import Path
+
+    folder_path = f'/tmp/{sess_id}_all'
+    os.makedirs(folder_path, exist_ok=True)
+    for i, face in enumerate(faces_list):
+        face_path = f'{folder_path}/{sess_id}_{i}.png'
+        cv2.imwrite(face_path, face)
+
+    zip_file_path = f'/tmp/{sess_id}_all_faces.zip'
+    with zipfile.ZipFile(zip_file_path, 'w') as zipf:
+        for face_path in Path(folder_path).glob('*.png'):
+            zipf.write(face_path, face_path.name)
+
+    print('Saved all extracted faces at:', zip_file_path)
+    return zip_file_path
+
+    return zip_file_path
 if __name__ == '__main__':
   video_path = './trial_video.mov'
   sess_id = 'test'
