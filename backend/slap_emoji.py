@@ -3,8 +3,9 @@ import numpy as np
 import torch
 import os
 
-from scipy.spatial.distance import cosine
 from facenet_pytorch import InceptionResnetV1
+from moviepy.editor import VideoFileClip
+from scipy.spatial.distance import cosine
 
 
 resnet = InceptionResnetV1(pretrained='vggface2').eval()
@@ -72,42 +73,36 @@ def is_same_face(curr_face: np.ndarray, anchor_embeddings: np.ndarray) -> bool:
 
 
 def main(video_filepath: str, emoji_filepath: str, query_face_filepath: list[str]) -> str:
-  cap = cv2.VideoCapture(video_filepath)
-  fps = cap.get(cv2.CAP_PROP_FPS)
-  width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-  height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-  fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-  out_filepath = os.path.join(os.path.dirname(video_filepath), 'output_' + '.'.join(os.path.basename(video_filepath).split('.')[:-1]) + '.mp4')
-  out = cv2.VideoWriter(out_filepath, fourcc, fps, (width, height))
-  emoji = cv2.imread(emoji_filepath)
-  query_faces_embeddings = [extract_embeddings(cv2.imread(x)) for x in query_face_filepath]
+    # Load the emoji and query face embeddings
+    emoji = cv2.imread(emoji_filepath)
+    query_faces_embeddings = [extract_embeddings(cv2.imread(x)) for x in query_face_filepath]
 
-  buffer_size = 1200
-  frame_buffer = []
-  while(cap.isOpened()):
-    ret, frame = cap.read()
-    if ret == True:
-      frame_buffer.append(frame)
-      if len(frame_buffer) == buffer_size:
-        modified_frames = [slap_emoji_on_face(frame, emoji, query_faces_embeddings) for f in frame_buffer]
-        for f in modified_frames:
-          out.write(f)
-        frame_buffer = []
-    else:
-      break
+    # Load the original video
+    video = VideoFileClip(video_filepath)
 
-  if len(frame_buffer):
-    modified_frames = [slap_emoji_on_face(f, emoji, query_faces_embeddings) for f in frame_buffer]
-    for f in modified_frames:
-      out.write(f)
-    frame_buffer = []
+    # Process the video frames
+    processed_video = video.fl_image(lambda frame: slap_emoji_on_face(frame, emoji, query_faces_embeddings))
+    
+    # Determine output filepath
+    out_filepath = os.path.join(
+        os.path.dirname(video_filepath),
+        'output_' + os.path.basename(video_filepath)
+    )
 
+    # Extract the codec from the original file extension
+    file_extension = os.path.splitext(video_filepath)[1].lower()
+    codec = 'libx264'  # Default codec for most cases
 
+    # Set codec based on the file extension
+    if file_extension == '.mov':
+        codec = 'prores'
+    elif file_extension == '.avi':
+        codec = 'rawvideo'  # or another suitable codec
 
+    # Save processed video with original audio
+    processed_video.set_audio(video.audio).write_videofile(out_filepath, codec=codec)
 
-  cap.release()
-  out.release()
-  return out_filepath
+    return out_filepath
 
 
 if __name__ == '__main__':
@@ -118,48 +113,148 @@ if __name__ == '__main__':
   print('Video saved at:', out_fp)
 
 
+
 '''
-This takes way too long ... how can I make this fast?
-Here are some optimizations you can make to improve the speed of your code:
+cv2 Video writer is buggy. If the videwo is long, it doesn't show that start frames. It randomly snaps the frame to some timestamp. wait till tahat ts appears, and then plays.
+  Also the original audio is not set. the processed video is mute.
+The issue you're encountering is likely related to buffering and codec support. Here are some suggestions to resolve it:
 
-1. Use a faster face detection algorithm: The Haar cascade classifier is known to be slow. You can try using a faster face detection algorithm like the Single Shot MultiBox Detector (SSD) or the Multi-Task Cascaded Convolutional Networks (MTCNN).
+1. **Buffer Management**: Ensure that frames are processed and written in a timely manner. If buffering is too aggressive, it might cause issues. Try reducing the buffer size to see if it helps.
 
-2. Resize the video frames: Resizing the video frames to a smaller size before processing can significantly speed up the face detection and emoji overlay process. You can resize the frames by adding the following lines of code after reading each frame:
+2. **Audio Handling**: To include audio in the processed video, you'll need to separately handle audio tracks since OpenCV doesn't process audio. Consider using `ffmpeg` to extract and reattach audio:
 
-```python
-frame = cv2.resize(frame, (640, 360))
-```
+   - Extract audio from the original video:
+     ```
+     ffmpeg -i trial_video.mov -q:a 0 -map a audio.mp3
+     ```
 
-This will resize the frame to a width of 640 pixels and a height of 360 pixels. You can adjust these values based on your requirements.
+   - Combine audio with the processed video:
+     ```
+     ffmpeg -i output_trial_video.mp4 -i audio.mp3 -c copy -map 0:v:0 -map 1:a:0 final_output.mp4
+     ```
 
-3. Use batch processing: Instead of processing each frame individually, you can process multiple frames at once using batch processing. This can be achieved by accumulating a certain number of frames in a buffer and then processing them together. You can modify the main loop in the `main` function as follows:
+3. **Codec Compatibility**: Ensure that the codec used by OpenCV's `VideoWriter` is compatible with the video player. Sometimes, `mp4v` might not be ideal. Use `XVID` or another codec if needed.
 
-```python
-buffer_size = 10
-frame_buffer = []
+4. **Alternative Libraries**: Consider using libraries like `moviepy` or `ffmpeg-python` for more robust video processing, especially for tasks that involve audio or complex video manipulations.
 
-while(cap.isOpened()):
-  ret, frame = cap.read()
-  if ret == True:
-    frame_buffer.append(frame)
-    if len(frame_buffer) == buffer_size:
-      modified_frames = [slap_emoji_on_face(f, emoji, query_faces_list) for f in frame_buffer]
-      for f in modified_frames:
-        out.write(f)
-      frame_buffer = []
-  else:
-    break
-```
-
-In this modified code, we accumulate frames in the `frame_buffer` until it reaches the `buffer_size`. Once the buffer is full, we process all the frames in the buffer using a list comprehension and write the modified frames to the output video. You can adjust the `buffer_size` based on your system's memory capacity and processing power.
-
-4. Use a faster video codec: The video codec used for writing the output video can also affect the processing speed. You can try using a faster codec like 'avc1' instead of 'mp4v'. Modify the line where you create the `cv2.VideoWriter` object as follows:
+Here is a quick adjustment to your code to reduce buffer size:
 
 ```python
-fourcc = cv2.VideoWriter_fourcc(*'avc1')
+buffer_size = 300  # Reduced buffer size
 ```
 
-5. Parallelize the face detection and emoji overlay process: You can use parallel processing techniques to distribute the workload across multiple cores of your CPU or even use a GPU for faster processing. However, implementing parallel processing can be complex and may require significant changes to your code.
+And remember to re-encode audio separately using `ffmpeg` as suggested above.
 
-These optimizations should help improve the speed of your code. However, keep in mind that the actual speedup achieved may vary depending on various factors such as the size of the input video, the number of faces detected in each frame, and the processing power of your system.
+show me example with moviepy for writing the new video frames
+
+Certainly! `MoviePy` can be used to handle video and audio more robustly than OpenCV. Below is an example of how you can use `MoviePy` to process and save your video frames, including handling the audio track:
+
+```python
+from moviepy.editor import VideoFileClip, AudioFileClip
+import numpy as np
+
+def process_frame(frame: np.ndarray, emoji: np.ndarray, query_face_embeddings: list[np.ndarray]) -> np.ndarray:
+    # Your slap_emoji_on_face function can be adapted here
+    return slap_emoji_on_face(frame, emoji, query_face_embeddings)
+
+def main_with_moviepy(video_filepath: str, emoji_filepath: str, query_face_filepath: list[str]) -> str:
+    # Load the emoji and query face embeddings
+    emoji = cv2.imread(emoji_filepath)
+    query_faces_embeddings = [extract_embeddings(cv2.imread(x)) for x in query_face_filepath]
+
+    # Load the original video
+    video = VideoFileClip(video_filepath)
+    
+    # Process the video frames
+    processed_video = video.fl_image(lambda frame: process_frame(frame, emoji, query_faces_embeddings))
+    
+    # Extract audio and save processed video
+    audio = video.audio
+    out_filepath = os.path.join(os.path.dirname(video_filepath), 'output_' + '.'.join(os.path.basename(video_filepath).split('.')[:-1]) + '.mp4')
+    processed_video.set_audio(audio).write_videofile(out_filepath, codec='libx264')
+
+    return out_filepath
+
+if __name__ == '__main__':
+    video_path = 'trial_video.mov'
+    emoji_path = './smiling_emoji.png'
+    query_face_filepath = 'query_face.jpeg'
+    out_fp = main_with_moviepy(video_path, emoji_path, [query_face_filepath])
+    print('Video saved at:', out_fp)
+```
+
+### Key Points:
+- **`fl_image` Function**: This is a convenient way to apply a function to each frame of the video.
+- **Audio Handling**: By setting the audio track from the original video onto the processed video, you maintain the original audio.
+- **Codec**: `MoviePy` uses `libx264` by default for `.mp4` files, which is usually compatible with most players.
+
+Ensure you have `MoviePy` installed in your environment:
+
+```bash
+pip install moviepy
+```
+
+This script will process each frame, apply your frame manipulation logic, and then save the video with its audio track intact.
+
+
+I want to save the video in the same format i received it
+
+
+To save the processed video in the same format as the original using `MoviePy`, you can utilize `ffmpeg` to determine the original video's codec and then instruct `MoviePy` to use that same codec when writing the new video. Here's how you might modify the script to achieve this:
+
+```python
+from moviepy.editor import VideoFileClip
+import cv2
+import numpy as np
+import os
+
+def process_frame(frame: np.ndarray, emoji: np.ndarray, query_face_embeddings: list[np.ndarray]) -> np.ndarray:
+    return slap_emoji_on_face(frame, emoji, query_face_embeddings)
+
+def main_with_moviepy(video_filepath: str, emoji_filepath: str, query_face_filepath: list[str]) -> str:
+    # Load the emoji and query face embeddings
+    emoji = cv2.imread(emoji_filepath)
+    query_faces_embeddings = [extract_embeddings(cv2.imread(x)) for x in query_face_filepath]
+
+    # Load the original video
+    video = VideoFileClip(video_filepath)
+
+    # Process the video frames
+    processed_video = video.fl_image(lambda frame: process_frame(frame, emoji, query_faces_embeddings))
+    
+    # Determine output filepath
+    out_filepath = os.path.join(
+        os.path.dirname(video_filepath),
+        'output_' + os.path.basename(video_filepath)
+    )
+
+    # Extract the codec from the original file extension
+    file_extension = os.path.splitext(video_filepath)[1].lower()
+    codec = 'libx264'  # Default codec for most cases
+
+    # Set codec based on the file extension
+    if file_extension == '.mov':
+        codec = 'prores'
+    elif file_extension == '.avi':
+        codec = 'rawvideo'  # or another suitable codec
+
+    # Save processed video with original audio
+    processed_video.set_audio(video.audio).write_videofile(out_filepath, codec=codec)
+
+    return out_filepath
+
+if __name__ == '__main__':
+    video_path = 'trial_video.mov'
+    emoji_path = './smiling_emoji.png'
+    query_face_filepath = 'query_face.jpeg'
+    out_fp = main_with_moviepy(video_path, emoji_path, [query_face_filepath])
+    print('Video saved at:', out_fp)
+```
+
+### Key Adjustments:
+- **File Extension Check**: Determine the codec based on the video file extension. You may need to adjust the codec based on your specific requirements and ensure that `ffmpeg` supports the codec for writing.
+- **Preserve Format**: Using the same extension and an appropriate codec helps maintain the original format.
+- **`MoviePy` Limitations**: Be aware that `MoviePy` has its own set of supported codecs which are reliant on `ffmpeg`. Ensure that the codecs you choose are available in your `ffmpeg` installation.
+
+This approach gives you control over the codec based on the file type and can help maintain compatibility with the original format if `ffmpeg` and `MoviePy` support it.
 '''
