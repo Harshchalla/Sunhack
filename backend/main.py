@@ -80,5 +80,7 @@ if video_file is not None:
             processed_video_filepath = slap_emoji.main(st.session_state[f'video_filepath_{video_hash}'], st.session_state['emoji_path'], [f'{faces_dir}/{video_hash}_{x}' for x in selected_captions])
             st.session_state[f'processed_video_{video_hash}'] = processed_video_filepath
     if f'processed_video_{video_hash}' in st.session_state:
-        with open(st.session_state[f'processed_video_{video_hash}'], 'rb') as f:
-            st.download_button('Download Video', f.read(), 'processed_video.mov')
+        output_video_path = st.session_state[f'processed_video_{video_hash}']
+        ext = output_video_path.split('.')[-1]
+        with open(output_video_path, 'rb') as f:
+            st.download_button('Download Video', f.read(), 'processed_video.'+ext)
